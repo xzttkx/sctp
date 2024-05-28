@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+	<title>文本转图片</title>
+	<style>
+		html, body {
+			padding: 0;
+			margin: 0;
+			background-color: #333;
+		}
+
+		#textarea {
+			width: 100vw;
+			height: 250px;
+			resize: none;
+			border: none;
+			background-color: #555;
+			color: #ccc;
+		}
+
+		#text_picture {
+			width: 100vw;
+			/*background-color: #000;*/
+		}
+	</style>
+</head>
+<body>
+	<textarea id="textarea"></textarea>
+	<button id="generate_picture">生成图片</button>
+	<button id="download_picture">下载图片</button>
+	<canvas id="text_picture"></canvas>
+	<script>
+		function getCharWidth(fontFamily, fontSize, char) {
+			// 创建一个临时的div元素来测量字符宽度
+			var div = document.createElement('div');
+			div.style.position = 'absolute';
+			div.style.top = '-1000px'; // 确保div不会显示在页面上
+			div.style.left = '-1000px'; // 同样确保不会显示
+			div.style.visibility = 'hidden'; // 隐藏div
+			div.style.fontFamily = fontFamily;
+			div.style.fontSize = fontSize;
+			div.style.letterSpacing = '0'; // 设置字符间距为0
+
+			// 将字符添加到临时的div中
+			div.textContent = char;
+
+			// 将临时的div添加到body中
+			document.body.appendChild(div);
+
+			// 获取字符的渲染宽度
+			var width = div.offsetWidth;
+
+			// 清理临时的div
+			div.remove(); // 直接使用remove方法删除div
+
+			return width;
+		}
+
+		function text_to_picture(tpt, canvas, fontSize){
+			canvas.width = 0;
+			canvas.height = 0;
+			let context = canvas.getContext("2d");
+
+			tpt.split("\n").forEach((line_text, line_index, lines_list) => {
+				let x = 0;
+				canvas.height = (line_index + 1) * fontSize;
+				line_text.split("").forEach((text, text_index, chars_list) => {
+					let text_width = getCharWidth("monospace", 16, text);
+					text_width = (Math.round((text_width * window.devicePixelRatio) / fontSize * 2) / 2) * fontSize;
+					if (text === " "){
+						text_width = fontSize / 2;
+					}else if (text === "\t"){
+						text_width = fontSize * 2;
+					}else if (text_width === 0){
+						text_width = fontSize;
+					}
+					x += text_width;
+					canvas.width = (canvas.width < x + text_width) ? (x + text_width) : canvas.width;
+				});
+			});
+
+			// 清除画布
+			context.clearRect(0, 0, canvas.width, canvas.height);
+			context.fillStyle = "#000";
+			context.fillRect(0, 0, canvas.width, canvas.height);
+
+			// 预设置画笔颜色
+			context.fillStyle = "#fff";
+			context.strokeStyle = "#fff";
+
+			tpt.split("\n").forEach((line_text, line_index, lines_list) => {
+				let x = 0;
+				let y = (line_index + 1) * fontSize;
+				line_text.split("").forEach((text, text_index, chars_list) => {
+					let text_width = getCharWidth("monospace", 16, text);
+					text_width = (Math.round((text_width * window.devicePixelRatio) / fontSize * 2) / 2) * fontSize;
+					if (text === " "){
+						text_width = fontSize / 2;
+					}else if (text === "\t"){
+						text_width = fontSize * 2;
+					}else if (text_width === 0){
+						context.font = `${fontSize / 2}px monospace`;
+						/*console.log(text.charCodeAt(0).toString(16).padStart(4, "0"))
+						console.log(text.charCodeAt(0))
+						*/
+						text_width = fontSize;
+
+						context.strokeRect(x, y - fontSize, text_width, fontSize);
+
+						text.charCodeAt(0).toString(16).padStart(4, "0").toUpperCase().split("").forEach((char_content, char_index, char_contents_list) => {
+							switch (char_index) {
+								case 0 :
+									context.fillText(char_content, x, y - (fontSize / 2));
+									break;
+								case 1 :
+									context.fillText(char_content, x + (fontSize / 2), y - (fontSize / 2));
+									break;
+								case 2 :
+									context.fillText(char_content, x, y);
+									break;
+								case 3 :
+									context.fillText(char_content, x + (fontSize / 2), y);
+									break;
+							}
+						});
+					}else{
+						context.font = `${fontSize}px monospace`;
+						context.fillText(text, x, y);
+					}
+					x += text_width;
+				});
+			});
+		}
+
+		document.getElementById("download_picture").addEventListener("click", event => {
+			document.getElementById("text_picture").toBlob((blob) => {
+				const url = URL.createObjectURL(blob);
+				let download = document.createElement("a");
+				download.setAttribute("download", "text.png");
+				download.setAttribute("href", url);
+				download.click();
+			}, "image/png", 1); // 指定图片格式为PNG，质量为95%
+		});
+
+		document.getElementById("generate_picture").addEventListener("click", event => {
+			text_to_picture(document.getElementById("textarea").value, document.getElementById("text_picture"), 16 * window.devicePixelRatio);
+		});
+	</script>
+</body>
+</html>
